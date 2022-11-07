@@ -1,0 +1,20 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - pip3 install checkov
+  build:
+    commands:
+      - yum install -y yum-utils
+      - yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+      - yum -y install terraform
+      - yum install jq -y
+      - terraform init -backend-config=backend.tfvars
+      - terraform plan -out plan_output.plan
+      - terraform show -json plan_output.plan | jq '.' > plan_output.json
+      - checkov -f plan_output.json > checkov_output.txt
+      - checkov -f plan_output.json
+    finally:
+      - aws s3 cp plan_output.json $TERRAFORM_VALIDATION_RESULT_BUCKET
+      - aws s3 cp checkov_output.txt $TERRAFORM_VALIDATION_RESULT_BUCKET
